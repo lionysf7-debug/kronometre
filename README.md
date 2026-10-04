@@ -6,7 +6,7 @@ Dock icon, no dependencies.
 
 > *Kronometre* is Turkish for "stopwatch".
 
-![Kronometre in the menu bar](Icon/icon_1024.png)
+![Kronometre app icon](Icon/icon_1024.png)
 
 ---
 
@@ -14,24 +14,27 @@ Dock icon, no dependencies.
 
 - **Lives in the menu bar** — `.accessory` activation policy, so there's no Dock
   icon and no app-switcher clutter.
-- **Left-click to start / pause**, right-click for the menu (Reset, Launch at
-  login, Quit).
+- **Left-click to start / pause**, right-click (or Control-click) for the menu
+  (Start/Pause, Reset, Launch at login, Quit). The UI is in Turkish.
 - **Sleep- and restart-proof.** Elapsed time is computed from the *start instant*
   (`Date`), not by incrementing a counter — so sleeping the Mac, quitting, or
-  relaunching never drifts the time.
+  relaunching never drifts the time. (Because it follows the wall clock, manually
+  changing the system time does shift it; it never goes below zero.)
 - **Launch at login** via `SMAppService` (the modern, sandbox-friendly API — no
   legacy login-item hacks).
 - **Monospaced digits** so the width doesn't jitter as the seconds tick.
-- **Zero dependencies.** Pure AppKit + `ServiceManagement`. The binary is a few
-  hundred KB.
+- **Zero dependencies.** Pure AppKit + `ServiceManagement`. The binary is only
+  ~110 KB.
 
 ## Install
 
-Requires macOS 14+ and Apple's Command Line Tools (`xcode-select --install`) —
-**no full Xcode needed.**
+**Requirements:** an Apple Silicon Mac (M1 or later), macOS 14 Sonoma or later, and
+Apple's Command Line Tools 15 or later (`xcode-select --install`; macOS 14 SDK and
+Swift 5.9) — **no full Xcode needed.**
+Kronometre needs no special permissions.
 
 ```bash
-git clone https://github.com/lionysf7-debug/kronometre.git && cd kronometre
+git clone https://github.com/lionysf7-debug/kronometre.git && cd kronometre   # private repo: needs an invite
 ./build.sh --install        # builds, ad-hoc signs, installs to /Applications, launches
 ```
 
@@ -46,7 +49,7 @@ Or just build it without installing:
 | Action        | Result                                   |
 | ------------- | ---------------------------------------- |
 | Left-click    | Start / pause                            |
-| Right-click   | Menu: Start/Pause · Reset · Launch at login · Quit |
+| Right-click (or Control-click) | Menu: Başlat/Duraklat (Start/Pause) · Sıfırla (Reset) · Açılışta başlat (Launch at login) · Kronometre'den Çık (Quit, ⌘Q) |
 
 The icon reflects the state: `stopwatch` when idle, `stopwatch.fill` while
 running, `pause.circle` when paused with time on the clock.
@@ -59,9 +62,12 @@ displayed time on demand:
 
 ```swift
 var elapsed: TimeInterval {
-    accumulated + (startDate.map { Date().timeIntervalSince($0) } ?? 0)
+    min(Self.maxInterval, max(0, accumulated + (startDate.map { Date().timeIntervalSince($0) } ?? 0)))
 }
 ```
+
+The result is clamped to 0…100 years: a clock moved backwards can't make it
+negative, and a corrupted saved value can't crash the `Int` conversion.
 
 Both values are persisted to `UserDefaults` on every change, so the stopwatch
 survives a quit or a reboot. A `0.2 s` timer (with tolerance, added in
